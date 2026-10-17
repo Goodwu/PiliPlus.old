@@ -30,15 +30,16 @@ jobs:
           git fetch upstream '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*' --prune
           # 先取回承载本 workflow 的分支，防止下一步 --prune 把它当作无来源的多余引用删除
           git fetch "$TARGET_URL" '+refs/heads/ci/upstream-sync:refs/heads/ci/upstream-sync'
-          failed=
-          push_log="$(git push --prune --force "$TARGET_URL" '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*' 2>&1)" || failed=1
+          status=0
+          push_log="$(git push --prune --force "$TARGET_URL" '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*' 2>&1)" || status=$?
+          printf '%s\n' "$push_log"
           {
             echo '## 上游同步结果'
             echo '```'
             printf '%s\n' "$push_log"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ -n "$failed" ]; then
-            echo '::error::推送到目标仓库失败'
-            exit 1
+          if [ "$status" -ne 0 ]; then
+            echo "::error::git push 失败，退出码 $status"
+            exit "$status"
           fi
