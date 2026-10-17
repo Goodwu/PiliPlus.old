@@ -1,0 +1,44 @@
+name: Sync upstream
+
+on:
+  schedule:
+    # UTC 01:30 = 北京时间 09:30；GitHub 定时任务实际触发可能有数十分钟延迟
+    - cron: '30 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 镜像同步上游分支与 tag
+        env:
+          UPSTREAM_URL: https://github.com/bggRGjQaUbCoE/PiliPlus.git
+          TARGET_URL: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+        run: |
+          set -euo pipefail
+          git init --bare mirror.git
+          cd mirror.git
+          git remote add upstream "$UPSTREAM_URL"
+          git fetch upstream '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*' --prune
+          # 先取回承载本 workflow 的分支，防止下一步 --prune 把它当作无来源的多余引用删除
+          git fetch "$TARGET_URL" '+refs/heads/ci/upstream-sync:refs/heads/ci/upstream-sync'
+          failed=
+          push_log="$(git push --prune --force "$TARGET_URL" '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*' 2>&1)" || failed=1
+          {
+            echo '## 上游同步结果'
+            echo '```'
+            printf '%s\n' "$push_log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$failed" ]; then
+            echo '::error::推送到目标仓库失败'
+            exit 1
+          fi
