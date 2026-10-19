@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: 镜像同步上游分支与 tag
+      - name: 同步上游分支与 tag，保留开发分支
         env:
           UPSTREAM_URL: https://github.com/bggRGjQaUbCoE/PiliPlus.git
           TARGET_URL: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
@@ -28,10 +28,19 @@ jobs:
           cd mirror.git
           git remote add upstream "$UPSTREAM_URL"
           git fetch upstream '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*' --prune
-          # 先取回承载本 workflow 的分支，防止下一步 --prune 把它当作无来源的多余引用删除
-          git fetch "$TARGET_URL" '+refs/heads/ci/upstream-sync:refs/heads/ci/upstream-sync'
+          # 仅推送本次从上游取得的分支，不对目标仓库的全部分支执行 prune。
+          # 开发与同步分支不参与推送；即使上游出现同名分支，也不能覆盖本地开发。
+          refspecs=()
+          git for-each-ref --format='%(refname)' refs/heads/ > upstream-heads.txt
+          while IFS= read -r ref; do
+            case "$ref" in
+              refs/heads/feature/ohos|refs/heads/ci/upstream-sync) continue ;;
+            esac
+            refspecs+=("+$ref:$ref")
+          done < upstream-heads.txt
           status=0
-          push_log="$(git push --prune --force "$TARGET_URL" '+refs/heads/*:refs/heads/*' '+refs/tags/*:refs/tags/*' 2>&1)" || status=$?
+          # --prune 仅对 tag 通配映射清理；上游分支通过显式 refspec 更新。
+          push_log="$(git push --prune "$TARGET_URL" "${refspecs[@]}" '+refs/tags/*:refs/tags/*' 2>&1)" || status=$?
           printf '%s\n' "$push_log"
           {
             echo '## 上游同步结果'
