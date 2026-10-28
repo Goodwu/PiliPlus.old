@@ -133,3 +133,19 @@ python3 tool/ohos/ohos.py check-source
 再使用新输出目录重做 SDK 补丁检查、构建准备、解析和受影响功能验证。
 新增目录降低 Git 合并冲突，但不会消除 Flutter API、插件接口和补丁上下文的
 维护工作。不要提交生成的 Pub 锁回原主线 `pubspec.lock`。
+
+## media-kit 开发源选择
+
+此历史 OHOS 活跃工作分支 `feature/ohos` 的 media-kit 源码与 CI 一律采用
+`Goodwu/media-kit@dev`。本地仍用 `pubspec_overrides.yaml` 的 `../media-kit`
+兄弟目录，请在开始构建前执行（不清理未提交文件）：
+
+```bash
+git -C ../media-kit fetch origin dev
+git -C ../media-kit switch dev
+git -C ../media-kit merge --ff-only origin/dev
+```
+
+Git fallback 的六个实际 media-kit 源包也指向 `dev`；单独的
+`media_kit_native_event_loop` 不属于 Goodwu/media-kit 仓库，保持上游来源。
+上游同步/默认分支不作更改。
