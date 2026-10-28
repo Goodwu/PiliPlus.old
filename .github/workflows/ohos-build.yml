@@ -48,7 +48,7 @@ jobs:
       - name: Checkout committed application and upstream history
         uses: actions/checkout@v4
         with:
-          repository: Goodwu/PiliPlus
+          repository: Goodwu/PiliPlus.old
           ref: ${{ inputs.application_ref || github.sha }}
           fetch-depth: 0
           persist-credentials: false
